@@ -34,6 +34,7 @@
 #import <Social/Social.h>
 
 static NSString *const kSHKFacebookUserInfo =@"kSHKFacebookUserInfo";
+static NSString *const kSHKFacebookUserMusicInfo =@"kSHKFacebookUserMusicInfo";
 static NSString *const kSHKFacebookVideoUploadLimits =@"kSHKFacebookVideoUploadLimits";
 
 // these are ways of getting back to the instance that made the request through statics
@@ -499,6 +500,16 @@ static SHKFacebook *requestingPermisSHKFacebook=nil;
 		}];
 		[self.pendingConnections addObject:con];
 	}
+    else if (self.item.shareType == SHKShareTypeUserMusic)
+    {
+		[self setQuiet:YES];
+
+		FBRequestConnection* con = [FBRequestConnection startWithGraphPath:@"me/music" completionHandler:^(FBRequestConnection *connection, id result, NSError *error) {
+            [self FBUserMusicInfoRequestHandlerCallback:connection result:result error:error];
+		}];
+		[self.pendingConnections addObject:con];
+
+    }
     [self sendDidStart];
 }
 
@@ -566,6 +577,26 @@ static SHKFacebook *requestingPermisSHKFacebook=nil;
 	}
 	[FBSession.activeSession close];	// unhook us
 }
+
+-(void)FBUserMusicInfoRequestHandlerCallback:(FBRequestConnection *)connection
+                                 result:(id) result
+                                  error:(NSError *)error
+{
+	if(![self.pendingConnections containsObject:connection]){
+		NSLog(@"SHKFacebook - received a callback for a connection not in the pending requests.");
+	}
+	[self.pendingConnections removeObject:connection];
+	if (error) {
+		[[SHKActivityIndicator currentIndicator] hide];
+		[self sendDidFailWithError:error];
+	}else{
+		[result convertNSNullsToEmptyStrings];
+		[[NSUserDefaults standardUserDefaults] setObject:result forKey:kSHKFacebookUserMusicInfo];
+		[self sendDidFinish];
+	}
+	[FBSession.activeSession close];	// unhook us
+}
+
 
 -(void)FBRequestHandlerCallback:(FBRequestConnection *)connection
 						 result:(id) result
