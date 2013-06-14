@@ -35,6 +35,7 @@
 
 static NSString *const kSHKFacebookUserInfo =@"kSHKFacebookUserInfo";
 static NSString *const kSHKFacebookUserMusicInfo =@"kSHKFacebookUserMusicInfo";
+static NSString *const kSHKFacebookUserFriendsUsingApp =@"kSHKFacebookUserFriendsUsingApp";
 static NSString *const kSHKFacebookVideoUploadLimits =@"kSHKFacebookVideoUploadLimits";
 
 // these are ways of getting back to the instance that made the request through statics
@@ -336,7 +337,7 @@ static SHKFacebook *requestingPermisSHKFacebook=nil;
 	return NO;
 }
 
--(void) sendDidCancel
+-(void)sendDidCancel
 {
 	[super sendDidCancel];
 	[self cancelPendingRequests];
@@ -355,7 +356,7 @@ static SHKFacebook *requestingPermisSHKFacebook=nil;
 		return NO;
 	
     // Ask for publish_actions permissions in context
-    if (self.item.shareType != SHKShareTypeUserInfo && self.item.shareType != SHKShareTypeUserMusic &&[FBSession.activeSession.permissions indexOfObject:@"publish_actions"] == NSNotFound) {	// we need at least this.SHKCONFIG(facebookWritePermissions
+    if (self.item.shareType != SHKShareTypeUserInfo && self.item.shareType != SHKShareTypeUserMusic && self.item.shareType != SHKShareTypeUserFirendsUsingApp && [FBSession.activeSession.permissions indexOfObject:@"publish_actions"] == NSNotFound) {	// we need at least this.SHKCONFIG(facebookWritePermissions
         // No permissions found in session, ask for it
         [self saveItemForLater:SHKPendingSend];
         [[SHKActivityIndicator currentIndicator] displayActivity:SHKLocalizedString(@"Authenticating...")];
@@ -510,6 +511,18 @@ static SHKFacebook *requestingPermisSHKFacebook=nil;
 		[self.pendingConnections addObject:con];
 
     }
+    else if (self.item.shareType == SHKShareTypeUserFirendsUsingApp)
+    {
+        [self setQuiet:YES];
+        
+        NSMutableDictionary *params = [NSMutableDictionary dictionary];
+        [params setObject:@"SELECT uid, name, pic_square FROM user WHERE is_app_user=1 AND uid IN (SELECT uid2 FROM friend WHERE uid1 = me())" forKey:@"q"];
+        
+        FBRequestConnection* con = [FBRequestConnection startWithGraphPath:@"/fql" parameters:params HTTPMethod:@"GET" completionHandler:^(FBRequestConnection *connection, id result, NSError *error) {
+            [self FBUserFriendsUsingAppRequestHandlerCallback:connection result:result error:error];
+        }];
+        [self.pendingConnections addObject:con];
+    }
     [self sendDidStart];
 }
 
@@ -592,6 +605,25 @@ static SHKFacebook *requestingPermisSHKFacebook=nil;
 	}else{
 		[result convertNSNullsToEmptyStrings];
 		[[NSUserDefaults standardUserDefaults] setObject:result forKey:kSHKFacebookUserMusicInfo];
+		[self sendDidFinish];
+	}
+	[FBSession.activeSession close];	// unhook us
+}
+
+-(void)FBUserFriendsUsingAppRequestHandlerCallback:(FBRequestConnection *)connection
+                                            result:(id) result
+                                             error:(NSError *)error
+{
+	if(![self.pendingConnections containsObject:connection]){
+		NSLog(@"SHKFacebook - received a callback for a connection not in the pending requests.");
+	}
+	[self.pendingConnections removeObject:connection];
+	if (error) {
+		[[SHKActivityIndicator currentIndicator] hide];
+		[self sendDidFailWithError:error];
+	}else{
+		[result convertNSNullsToEmptyStrings];
+		[[NSUserDefaults standardUserDefaults] setObject:result forKey:kSHKFacebookUserFriendsUsingApp];
 		[self sendDidFinish];
 	}
 	[FBSession.activeSession close];	// unhook us
