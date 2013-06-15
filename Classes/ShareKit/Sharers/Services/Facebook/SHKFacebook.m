@@ -275,7 +275,7 @@ static SHKFacebook *requestingPermisSHKFacebook=nil;
 
 - (BOOL)shouldAutoShare
 {
-	return NO;
+	return YES;
 }
 
 #pragma mark -
