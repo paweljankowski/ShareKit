@@ -172,7 +172,11 @@
         [mailController addAttachmentData:UIImageJPEGRepresentation(self.item.image, jpgQuality) mimeType:@"image/jpeg" fileName:@"Image.jpg"];
 	}
 	
-	[mailController setSubject:self.item.title];
+    if ( self.item.subject ) {
+        [mailController setSubject:self.item.subject];
+    } else {
+        [mailController setSubject:self.item.title];
+    }
 	[mailController setMessageBody:body isHTML:isHTML];
 			
 	[[SHK currentHelper] showViewController:mailController];

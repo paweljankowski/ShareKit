@@ -66,6 +66,7 @@ typedef enum
 
 @property (nonatomic, retain)	NSString *title;
 @property (nonatomic, retain)	NSString *text;
+@property (nonatomic, retain)   NSString *subject;
 @property (nonatomic, retain)	NSArray *tags;
 
 @property (nonatomic, retain)	NSURL *URL;
